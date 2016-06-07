@@ -21,14 +21,22 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> {
 
     public CsvEditor() {
         super("csveditor.jar");
-        setTitle(getString("App.Title"));
+        // TODO: Fix no 0-arg constructor in
+        SwingUtilities.invokeLater(() -> {
+            setTitle(getString("App.Title"));
+        });
     }
 
     @Override
     protected void createActions(CsvEditorPrefs prefs) {
 
         addAction(Actions.OPEN_ACTION_KEY, new Actions.OpenAction(this));
+        addAction(Actions.SAVE_ACTION_KEY, new Actions.SaveAction(this));
+        // TODO: Remove getResourceBundle() arguments when fixed FifeCommon is available
         addAction(EXIT_ACTION_KEY, new ExitAction(this, this.getResourceBundle(), "Action.Exit"));
+
+        addAction(HELP_ACTION_KEY, new HelpAction(this, this.getResourceBundle(), "Action.Help"));
+        addAction(ABOUT_ACTION_KEY, new HelpAction(this, this.getResourceBundle(), "Action.About"));
     }
 
     @Override
@@ -49,6 +57,10 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> {
     @Override
     protected CustomizableToolBar createToolBar(CsvEditorPrefs prefs) {
         return null;
+    }
+
+    public AppContent getAppContent() {
+        return appContent;
     }
 
     public RTextFileChooser getFileChooser() {
