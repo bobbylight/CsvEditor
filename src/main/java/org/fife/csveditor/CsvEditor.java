@@ -32,11 +32,10 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> {
 
         addAction(Actions.OPEN_ACTION_KEY, new Actions.OpenAction(this));
         addAction(Actions.SAVE_ACTION_KEY, new Actions.SaveAction(this));
-        // TODO: Remove getResourceBundle() arguments when fixed FifeCommon is available
-        addAction(EXIT_ACTION_KEY, new ExitAction(this, this.getResourceBundle(), "Action.Exit"));
+        addAction(EXIT_ACTION_KEY, new ExitAction<>(this, "Action.Exit"));
 
-        addAction(HELP_ACTION_KEY, new HelpAction(this, this.getResourceBundle(), "Action.Help"));
-        addAction(ABOUT_ACTION_KEY, new HelpAction(this, this.getResourceBundle(), "Action.About"));
+        addAction(HELP_ACTION_KEY, new HelpAction<>(this, "Action.Help"));
+        addAction(ABOUT_ACTION_KEY, new HelpAction<>(this, "Action.About"));
     }
 
     @Override
@@ -135,7 +134,7 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> {
             } catch (Exception e) {
                 e.printStackTrace(); // Never happens
             }
-            CsvEditor editor = new CsvEditor();
+            = new CsvEditor();
         });
     }
 }
