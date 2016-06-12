@@ -3,6 +3,7 @@ package org.fife.csveditor;
 
 import org.fife.help.HelpDialog;
 import org.fife.ui.CustomizableToolBar;
+import org.fife.ui.OptionsDialog;
 import org.fife.ui.SplashScreen;
 import org.fife.ui.StatusBar;
 import org.fife.ui.app.AbstractGUIApplication;
@@ -34,7 +35,12 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> {
         addAction(Actions.SAVE_ACTION_KEY, new Actions.SaveAction(this));
         addAction(EXIT_ACTION_KEY, new ExitAction<>(this, "Action.Exit"));
 
-        addAction(HELP_ACTION_KEY, new HelpAction<>(this, "Action.Help"));
+        addAction(Actions.ADD_ROW_ABOVE_ACTION_KEY, new Actions.AddRowAction(this, true));
+        addAction(Actions.REMOVE_ROWS_ACTION_KEY, new Actions.RemoveRowsAction(this));
+        addAction(Actions.ADD_COLUMN_ACTION_KEY, new Actions.AddColumnAction(this, true));
+        addAction(Actions.OPTIONS_ACTION_KEY, new Actions.OptionsAction(this));
+
+        addAction(HELP_ACTION_KEY, new HelpAction<>(this, "Action.Help", "/org/fife/csveditor/icons/help.gif"));
         addAction(ABOUT_ACTION_KEY, new HelpAction<>(this, "Action.About"));
     }
 
@@ -76,6 +82,11 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> {
     @Override
     public HelpDialog getHelpDialog() {
         return null;
+    }
+
+    @Override
+    public OptionsDialog getOptionsDialog() {
+        return new OptionsDialog(this);
     }
 
     @Override
@@ -134,7 +145,7 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> {
             } catch (Exception e) {
                 e.printStackTrace(); // Never happens
             }
-            = new CsvEditor();
+            new CsvEditor();
         });
     }
 }

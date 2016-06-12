@@ -13,6 +13,7 @@ public class CsvMenuBar extends MenuBar {
         this.app = app;
 
         add(createFileMenu());
+        add(createEditMenu());
         add(createHelpMenu());
     }
 
@@ -25,6 +26,19 @@ public class CsvMenuBar extends MenuBar {
 
         menu.addSeparator();
         menu.add(createMenuItem(app.getAction(CsvEditor.EXIT_ACTION_KEY)));
+
+        return menu;
+    }
+
+    private JMenu createEditMenu() {
+
+        JMenu menu = createMenu(app.getResourceBundle(), "Menu.Edit");
+
+        menu.add(createMenuItem(app.getAction(Actions.ADD_ROW_ABOVE_ACTION_KEY)));
+        menu.add(createMenuItem(app.getAction(Actions.REMOVE_ROWS_ACTION_KEY)));
+
+        menu.addSeparator();
+        menu.add(createMenuItem(app.getAction(Actions.OPTIONS_ACTION_KEY)));
 
         return menu;
     }

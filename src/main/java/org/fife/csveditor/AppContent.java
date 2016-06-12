@@ -5,7 +5,6 @@ import com.opencsv.CSVWriter;
 
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.PrintWriter;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -37,6 +36,72 @@ public class AppContent extends JPanel {
         add(tabbedPane);
 
         open(Paths.get("test.csv"));
+    }
+
+    public void addColumns(int count, boolean before) {
+
+        int selectedIndex = tabbedPane.getSelectedIndex();
+        if (selectedIndex == -1) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+
+        CsvTable table = getSelectedCsvTable();
+        int col = table.getSelectedColumn();
+        if (col == -1) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+        if (!before) {
+            col++;
+        }
+
+        FileData fileData = this.fileData.get(selectedIndex);
+        DefaultTableModel model = fileData.getModel();
+        model.addColumn("column" + (model.getColumnCount() + 1));
+        table.moveColumn(table.getColumnCount() - 1, col);
+    }
+
+    public void addRows(int count, boolean above) {
+
+        int selectedIndex = tabbedPane.getSelectedIndex();
+        if (selectedIndex == -1) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+
+        CsvTable table = getSelectedCsvTable();
+        int row = table.getSelectedRow();
+        if (row == -1) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+        if (!above) {
+            row++;
+        }
+
+        FileData fileData = this.fileData.get(selectedIndex);
+        DefaultTableModel model = fileData.getModel();
+        int columnCount = model.getColumnCount();
+
+        for (int i = 0; i < count; i++) {
+            model.insertRow(row + i, new Object[columnCount]);
+        }
+        table.getSelectionModel().setSelectionInterval(row + count - 1, row + count - 1);
+    }
+
+    /**
+     * Returns the selected tab's CSV editor, or {@code null} if no tabs are open.
+     *
+     * @return The selected CSV editor, or {@code null}.
+     */
+    public CsvTable getSelectedCsvTable() {
+        int selectedIndex = tabbedPane.getSelectedIndex();
+        if (selectedIndex > -1) {
+            JScrollPane sp = (JScrollPane) tabbedPane.getComponentAt(selectedIndex);
+            return (CsvTable) sp.getViewport().getView();
+        }
+        return null;
     }
 
     public void open(Path file) {
@@ -74,8 +139,10 @@ public class AppContent extends JPanel {
         }
 
         DefaultTableModel model = new DefaultTableModel(arrayRowData, columnNames);
-        JTable table = new JTable(model);
-        tabbedPane.addTab(file.toFile().getName(), new JScrollPane(table));
+        CsvTable table = new CsvTable(app, model);
+        JScrollPane sp = new JScrollPane(table);
+        sp.setRowHeaderView(new RowHeader(app, table));
+        tabbedPane.addTab(file.toFile().getName(), sp);
         tabbedPane.setSelectedIndex(tabbedPane.getTabCount() - 1);
 
         FileData fileData = new FileData(file);
@@ -95,13 +162,46 @@ public class AppContent extends JPanel {
 
             List<String> row = new ArrayList<>();
             for (int i = 0; i < rowVec.size(); i++) {
-                row.add(rowVec.get(i).toString());
+                String value = rowVec.get(i) == null ? "" : rowVec.get(i).toString();
+                row.add(value);
             }
 
             data.add(row.toArray(new String[row.size()]));
         }
 
         return data;
+    }
+
+    public void removeSelectedRows() {
+
+        int selectedIndex = tabbedPane.getSelectedIndex();
+        if (selectedIndex == -1) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+
+        CsvTable table = getSelectedCsvTable();
+
+        FileData fileData = this.fileData.get(selectedIndex);
+        DefaultTableModel model = fileData.getModel();
+        int columnCount = table.getColumnCount();
+
+        int minSelectionIndex = table.getSelectionModel().getMinSelectionIndex();
+        int maxSelectionIndex = table.getSelectionModel().getMaxSelectionIndex();
+        int minRow = minSelectionIndex;// / columnCount;
+        int maxRow = maxSelectionIndex;// / columnCount;
+        if (minRow == -1) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+        for (int i = minRow; i <= maxRow; i++) {
+            model.removeRow(minRow);
+        }
+
+        // Don't let them have a 0-row table
+        if (table.getRowCount() == 0) {
+            model.addRow(new Object[columnCount]);
+        }
     }
 
     public void saveSelectedTab() {
@@ -122,6 +222,15 @@ public class AppContent extends JPanel {
         } catch (IOException ioe) {
             app.displayException(ioe);
         }
+    }
+
+    public void selectRow(int row) {
+
+        CsvTable table = getSelectedCsvTable();
+        if (table == null) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+        }
+        table.setSelectedRows(row, row);
     }
 
     private class TabbedPaneListener extends MouseAdapter {
