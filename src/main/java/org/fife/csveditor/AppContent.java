@@ -10,7 +10,9 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import javax.swing.*;
+import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -58,8 +60,10 @@ public class AppContent extends JPanel {
 
         FileData fileData = this.fileData.get(selectedIndex);
         DefaultTableModel model = fileData.getModel();
-        model.addColumn("column" + (model.getColumnCount() + 1));
-        table.moveColumn(table.getColumnCount() - 1, col);
+        String newColumnName = "column" + (model.getColumnCount() + 1);
+
+        // TODO: Create column and place in proper position, which is exceedingly difficult in Swing...
+        model.addColumn(newColumnName);
     }
 
     public void addRows(int count, boolean above) {
