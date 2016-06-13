@@ -11,6 +11,7 @@ class Actions {
     static final String SAVE_ACTION_KEY = "Actions.Save";
 
     static final String ADD_ROW_ABOVE_ACTION_KEY = "Actions.AddRowAbove";
+    static final String ADD_ROWS_ABOVE_ACTION_KEY = "Actions.AddRowsAbove";
     static final String REMOVE_ROWS_ACTION_KEY = "Actions.RemoveRows";
     static final String ADD_COLUMN_ACTION_KEY = "Actions.AddColumn";
 
@@ -44,6 +45,22 @@ class Actions {
         public void actionPerformed(ActionEvent e) {
             CsvEditor app = getApplication();
             app.getAppContent().addRows(1, above);
+        }
+    }
+
+    static class AddRowsAction extends AppAction<CsvEditor> {
+
+        private boolean above;
+
+        AddRowsAction(CsvEditor app, boolean above) {
+            super(app, "Action.AddRows" + (above ? "Above" : "Below"));
+            this.above = above;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            CsvEditor app = getApplication();
+            app.getAppContent().addArbitraryRows(above);
         }
     }
 

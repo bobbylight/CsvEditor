@@ -40,6 +40,34 @@ public class AppContent extends JPanel {
         open(Paths.get("test.csv"));
     }
 
+    public void addArbitraryRows(boolean above) {
+
+        int selectedIndex = tabbedPane.getSelectedIndex();
+        if (selectedIndex == -1) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+
+        CsvTable table = getSelectedCsvTable();
+        int row = table.getSelectedRow();
+        if (row == -1) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+        if (!above) {
+            row++;
+        }
+
+        AddRowsDialog dialog = new AddRowsDialog(app, above);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+
+        int rowCount = dialog.getRowCount();
+        if (rowCount > -1) {
+            addRows(rowCount, dialog.getRowLocation());
+        }
+    }
+
     public void addColumns(int count, boolean before) {
 
         int selectedIndex = tabbedPane.getSelectedIndex();

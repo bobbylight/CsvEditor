@@ -36,6 +36,7 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> {
         addAction(EXIT_ACTION_KEY, new ExitAction<>(this, "Action.Exit"));
 
         addAction(Actions.ADD_ROW_ABOVE_ACTION_KEY, new Actions.AddRowAction(this, true));
+        addAction(Actions.ADD_ROWS_ABOVE_ACTION_KEY, new Actions.AddRowsAction(this, true));
         addAction(Actions.REMOVE_ROWS_ACTION_KEY, new Actions.RemoveRowsAction(this));
         addAction(Actions.ADD_COLUMN_ACTION_KEY, new Actions.AddColumnAction(this, true));
         addAction(Actions.OPTIONS_ACTION_KEY, new Actions.OptionsAction(this));

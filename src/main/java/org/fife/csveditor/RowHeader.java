@@ -1,5 +1,7 @@
 package org.fife.csveditor;
 
+import org.fife.ui.UIUtil;
+
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
@@ -49,8 +51,10 @@ public class RowHeader extends JList implements TableModelListener {
     private JPopupMenu getContextMenu() {
         if (contextMenu == null) {
             contextMenu = new JPopupMenu();
-            contextMenu.add(new JMenuItem(app.getAction(Actions.ADD_ROW_ABOVE_ACTION_KEY)));
-            contextMenu.add(new JMenuItem(app.getAction(Actions.REMOVE_ROWS_ACTION_KEY)));
+            contextMenu.add(UIUtil.newMenuItem(app.getAction(Actions.ADD_ROW_ABOVE_ACTION_KEY)));
+            contextMenu.add(UIUtil.newMenuItem(app.getAction(Actions.REMOVE_ROWS_ACTION_KEY)));
+            contextMenu.addSeparator();
+            contextMenu.add(UIUtil.newMenuItem(app.getAction(Actions.ADD_ROWS_ABOVE_ACTION_KEY)));
         }
         return contextMenu;
     }
