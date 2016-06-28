@@ -14,23 +14,30 @@ import java.util.EventObject;
 public class CsvTable extends JTable {
 
     private CsvEditor app;
+    private FileData fileData;
     private Listener listener;
     private JPopupMenu popupMenu;
 
-    CsvTable(CsvEditor app, DefaultTableModel model) {
+    CsvTable(CsvEditor app, FileData fileData) {
 
-        super(model);
+        super(fileData.getModel());
         this.app = app;
+        this.fileData = fileData;
 
         setCellSelectionEnabled(true);
         setRowSelectionAllowed(true);
         getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
         setDefaultEditor(Object.class, new CellEditor());
+        setFillsViewportHeight(true);
 
         listener = new Listener();
 
         JTableHeader header = getTableHeader();
         header.addMouseListener(listener);
+    }
+
+    public FileData getFileData() {
+        return fileData;
     }
 
     public void setSelectedRows(int min, int max) {

@@ -10,9 +10,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import javax.swing.*;
-import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -20,16 +18,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Vector;
 
-public class AppContent extends JPanel {
+class AppContent extends JPanel {
 
     private CsvEditor app;
-    private List<FileData> fileData;
     private JTabbedPane tabbedPane;
 
-    public AppContent(CsvEditor app) {
+    AppContent(CsvEditor app) {
 
         this.app = app;
-        fileData = new ArrayList<>();
 
         TabbedPaneListener tpl = new TabbedPaneListener();
         tabbedPane = new JTabbedPane();
@@ -37,10 +33,10 @@ public class AppContent extends JPanel {
         setLayout(new BorderLayout());
         add(tabbedPane);
 
-        open(Paths.get("test.csv"));
+        open(null);
     }
 
-    public void addArbitraryRows(boolean above) {
+    void addArbitraryRows(boolean above) {
 
         int selectedIndex = tabbedPane.getSelectedIndex();
         if (selectedIndex == -1) {
@@ -68,7 +64,7 @@ public class AppContent extends JPanel {
         }
     }
 
-    public void addColumns(int count, boolean before) {
+    void addColumns(int count, boolean before) {
 
         int selectedIndex = tabbedPane.getSelectedIndex();
         if (selectedIndex == -1) {
@@ -86,7 +82,7 @@ public class AppContent extends JPanel {
             col++;
         }
 
-        FileData fileData = this.fileData.get(selectedIndex);
+        FileData fileData = table.getFileData();
         DefaultTableModel model = fileData.getModel();
         String newColumnName = "column" + (model.getColumnCount() + 1);
 
@@ -94,7 +90,7 @@ public class AppContent extends JPanel {
         model.addColumn(newColumnName);
     }
 
-    public void addRows(int count, boolean above) {
+    void addRows(int count, boolean above) {
 
         int selectedIndex = tabbedPane.getSelectedIndex();
         if (selectedIndex == -1) {
@@ -112,7 +108,7 @@ public class AppContent extends JPanel {
             row++;
         }
 
-        FileData fileData = this.fileData.get(selectedIndex);
+        FileData fileData = table.getFileData();
         DefaultTableModel model = fileData.getModel();
         int columnCount = model.getColumnCount();
 
@@ -122,12 +118,32 @@ public class AppContent extends JPanel {
         table.getSelectionModel().setSelectionInterval(row + count - 1, row + count - 1);
     }
 
+    void closeCurrentTab() {
+        closeTab(tabbedPane.getSelectedIndex());
+    }
+
+    private void closeTab(int index) {
+
+        if (index < 0 || index >= tabbedPane.getTabCount()) {
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+
+        // TODO: Check dirty state
+
+        tabbedPane.removeTabAt(index);
+
+        if (tabbedPane.getTabCount() == 0) {
+            open(null);
+        }
+    }
+
     /**
      * Returns the selected tab's CSV editor, or {@code null} if no tabs are open.
      *
      * @return The selected CSV editor, or {@code null}.
      */
-    public CsvTable getSelectedCsvTable() {
+    CsvTable getSelectedCsvTable() {
         int selectedIndex = tabbedPane.getSelectedIndex();
         if (selectedIndex > -1) {
             JScrollPane sp = (JScrollPane) tabbedPane.getComponentAt(selectedIndex);
@@ -136,11 +152,16 @@ public class AppContent extends JPanel {
         return null;
     }
 
-    public void open(Path file) {
+    /**
+     * Opens a file.
+     *
+     * @param file The file to open.  If this is {@code null}, an empty CSV file is opened.
+     */
+    void open(Path file) {
 
         List<String[]> rows;
 
-        if (Files.exists(file)) {
+        if (file != null && Files.exists(file)) {
             CSVReader r;
             try {
                 r = new CSVReader(Files.newBufferedReader(file, Charset.forName("UTF-8")));
@@ -153,8 +174,6 @@ public class AppContent extends JPanel {
         }
         else {
             rows = new ArrayList<>();
-            String[] columnHeaders = { "column1", "column2", "column3" };
-            rows.add(columnHeaders);
             for (int i = 0; i < 3; i++) {
                 rows.add(new String[3]);
             }
@@ -171,15 +190,13 @@ public class AppContent extends JPanel {
         }
 
         DefaultTableModel model = new DefaultTableModel(arrayRowData, columnNames);
-        CsvTable table = new CsvTable(app, model);
-        JScrollPane sp = new JScrollPane(table);
-        sp.setRowHeaderView(new RowHeader(app, table));
-        tabbedPane.addTab(file.toFile().getName(), sp);
-        tabbedPane.setSelectedIndex(tabbedPane.getTabCount() - 1);
-
         FileData fileData = new FileData(file);
         fileData.setModel(model);
-        this.fileData.add(fileData);
+        CsvTable table = new CsvTable(app, fileData);
+        JScrollPane sp = new JScrollPane(table);
+        sp.setRowHeaderView(new RowHeader(app, table));
+        tabbedPane.addTab(fileData.getFileName(), sp);
+        tabbedPane.setSelectedIndex(tabbedPane.getTabCount() - 1);
     }
 
     private static List<String[]> getDataInProperFormat(DefaultTableModel model) {
@@ -193,8 +210,8 @@ public class AppContent extends JPanel {
             Vector rowVec = (Vector)e.nextElement();
 
             List<String> row = new ArrayList<>();
-            for (int i = 0; i < rowVec.size(); i++) {
-                String value = rowVec.get(i) == null ? "" : rowVec.get(i).toString();
+            for (Object aRowVec : rowVec) {
+                String value = aRowVec == null ? "" : aRowVec.toString();
                 row.add(value);
             }
 
@@ -204,7 +221,7 @@ public class AppContent extends JPanel {
         return data;
     }
 
-    public void removeSelectedRows() {
+    void removeSelectedRows() {
 
         int selectedIndex = tabbedPane.getSelectedIndex();
         if (selectedIndex == -1) {
@@ -214,7 +231,7 @@ public class AppContent extends JPanel {
 
         CsvTable table = getSelectedCsvTable();
 
-        FileData fileData = this.fileData.get(selectedIndex);
+        FileData fileData = table.getFileData();
         DefaultTableModel model = fileData.getModel();
         int columnCount = table.getColumnCount();
 
@@ -236,10 +253,13 @@ public class AppContent extends JPanel {
         }
     }
 
-    public void saveSelectedTab() {
+    boolean saveSelectedTab() {
 
-        int selectedIndex = tabbedPane.getSelectedIndex();
-        FileData fileData = this.fileData.get(selectedIndex);
+        FileData fileData = getSelectedCsvTable().getFileData();
+        if (!fileData.isPreviouslySaved()) {
+            app.getAction(Actions.SAVE_AS_ACTION_KEY).actionPerformed(null);
+            return true;
+        }
 
         CSVWriter w;
         try {
@@ -253,21 +273,25 @@ public class AppContent extends JPanel {
 
         } catch (IOException ioe) {
             app.displayException(ioe);
+            return false;
         }
+
+        return true;
     }
 
-    public void selectRow(int row) {
+    void selectRow(int row) {
 
         CsvTable table = getSelectedCsvTable();
         if (table == null) {
             UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
         }
         table.setSelectedRows(row, row);
     }
 
     private class TabbedPaneListener extends MouseAdapter {
 
-        public void install(JTabbedPane tabbedPane) {
+        void install(JTabbedPane tabbedPane) {
             tabbedPane.addMouseListener(this);
         }
 
@@ -278,7 +302,7 @@ public class AppContent extends JPanel {
 
                 int clickedTab = tabbedPane.indexAtLocation(e.getX(), e.getY());
                 if (clickedTab > -1) {
-                    tabbedPane.removeTabAt(clickedTab);
+                    closeTab(clickedTab);
                 }
             }
         }

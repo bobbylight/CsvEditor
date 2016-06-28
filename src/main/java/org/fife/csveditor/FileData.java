@@ -6,37 +6,45 @@ import java.nio.file.Path;
 /**
  * Information about an open CSV file.
  */
-public class FileData {
+class FileData {
 
     private Path path;
     private boolean dirty;
     private DefaultTableModel model;
 
-    public FileData(Path path) {
+    FileData(Path path) {
         this.path = path;
     }
 
-    public DefaultTableModel getModel() {
+    String getFileName() {
+        return path != null ? path.toFile().getName() : "Untitled.csv";
+    }
+
+    DefaultTableModel getModel() {
         return model;
     }
 
-    public Path getPath() {
+    Path getPath() {
         return path;
     }
 
-    public boolean isDirty() {
+    boolean isDirty() {
         return dirty;
+    }
+
+    boolean isPreviouslySaved() {
+        return path != null;
     }
 
     public void setDirty(boolean dirty) {
         this.dirty = dirty;
     }
 
-    public void setModel(DefaultTableModel model) {
+    void setModel(DefaultTableModel model) {
         this.model = model;
     }
 
-    public void setPath(Path path) {
+    void setPath(Path path) {
         this.path = path;
     }
 
