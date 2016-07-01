@@ -2,10 +2,11 @@ package org.fife.csveditor;
 
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
+import org.fife.csveditor.events.FileEvent;
+import org.fife.csveditor.events.FileEventListener;
 
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -18,7 +19,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Vector;
 
-class AppContent extends JPanel {
+/**
+ * The haert of the application.  This is essentially the "controller," with all the main business logic.
+ */
+public class AppContent extends JPanel {
 
     private CsvEditor app;
     private JTabbedPane tabbedPane;
@@ -73,21 +77,11 @@ class AppContent extends JPanel {
         }
 
         CsvTable table = getSelectedCsvTable();
-        int col = table.getSelectedColumn();
-        if (col == -1) {
-            UIManager.getLookAndFeel().provideErrorFeedback(this);
-            return;
-        }
-        if (!before) {
-            col++;
-        }
+        table.addColumns(count, before);
+    }
 
-        FileData fileData = table.getFileData();
-        DefaultTableModel model = fileData.getModel();
-        String newColumnName = "column" + (model.getColumnCount() + 1);
-
-        // TODO: Create column and place in proper position, which is exceedingly difficult in Swing...
-        model.addColumn(newColumnName);
+    void addFileEventListener(FileEventListener l) {
+        listenerList.add(FileEventListener.class, l);
     }
 
     void addRows(int count, boolean above) {
@@ -98,24 +92,7 @@ class AppContent extends JPanel {
             return;
         }
 
-        CsvTable table = getSelectedCsvTable();
-        int row = table.getSelectedRow();
-        if (row == -1) {
-            UIManager.getLookAndFeel().provideErrorFeedback(this);
-            return;
-        }
-        if (!above) {
-            row++;
-        }
-
-        FileData fileData = table.getFileData();
-        DefaultTableModel model = fileData.getModel();
-        int columnCount = model.getColumnCount();
-
-        for (int i = 0; i < count; i++) {
-            model.insertRow(row + i, new Object[columnCount]);
-        }
-        table.getSelectionModel().setSelectionInterval(row + count - 1, row + count - 1);
+        getSelectedCsvTable().addRows(count, above);
     }
 
     void closeCurrentTab() {
@@ -131,72 +108,46 @@ class AppContent extends JPanel {
 
         // TODO: Check dirty state
 
+        CsvTable csvTable = getCsvTable(index);
         tabbedPane.removeTabAt(index);
+        fireFileEvent(FileEvent.Type.CLOSED, csvTable.getFileData().getPath());
 
         if (tabbedPane.getTabCount() == 0) {
             open(null);
         }
     }
 
-    /**
-     * Returns the selected tab's CSV editor, or {@code null} if no tabs are open.
-     *
-     * @return The selected CSV editor, or {@code null}.
-     */
-    CsvTable getSelectedCsvTable() {
-        int selectedIndex = tabbedPane.getSelectedIndex();
-        if (selectedIndex > -1) {
-            JScrollPane sp = (JScrollPane) tabbedPane.getComponentAt(selectedIndex);
-            return (CsvTable) sp.getViewport().getView();
+    private void fireFileEvent(FileEvent.Type type, Path path) {
+
+        FileEvent e = new FileEvent(app, type, path);
+
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length - 2; i >= 0; i -= 2) {
+            if (listeners[i] == FileEventListener.class) {
+                FileEventListener l = (FileEventListener)listeners[i+1];
+                if (type == FileEvent.Type.OPENED) {
+                    l.fileOpened(e);
+                }
+                else {
+                    l.fileClosed(e);
+                }
+            }
         }
-        return null;
     }
 
     /**
-     * Opens a file.
+     * Returns the CSV editor at the specified index.
      *
-     * @param file The file to open.  If this is {@code null}, an empty CSV file is opened.
+     * @param index The index of the CSV editor.
+     * @return The editor.
+     * @see #getSelectedCsvTable()
      */
-    void open(Path file) {
-
-        List<String[]> rows;
-
-        if (file != null && Files.exists(file)) {
-            CSVReader r;
-            try {
-                r = new CSVReader(Files.newBufferedReader(file, Charset.forName("UTF-8")));
-                rows = r.readAll();
-                r.close();
-            } catch (IOException ioe) {
-                app.displayException(ioe);
-                return;
-            }
-        }
-        else {
-            rows = new ArrayList<>();
-            for (int i = 0; i < 3; i++) {
-                rows.add(new String[3]);
-            }
-        }
-
-        String[][] arrayRowData = new String[rows.size()][];
-        for (int i = 0; i < rows.size(); i++) {
-            arrayRowData[i] = rows.get(i);
-        }
-
-        String[] columnNames = new String[rows.get(0).length];
-        for (int i = 0; i < columnNames.length; i++) {
-            columnNames[i] = "column" + (i + 1);
-        }
-
-        DefaultTableModel model = new DefaultTableModel(arrayRowData, columnNames);
-        FileData fileData = new FileData(file);
-        fileData.setModel(model);
-        CsvTable table = new CsvTable(app, fileData);
-        JScrollPane sp = new JScrollPane(table);
-        sp.setRowHeaderView(new RowHeader(app, table));
-        tabbedPane.addTab(fileData.getFileName(), sp);
-        tabbedPane.setSelectedIndex(tabbedPane.getTabCount() - 1);
+    CsvTable getCsvTable(int index) {
+        JScrollPane sp = (JScrollPane) tabbedPane.getComponentAt(index);
+        return (CsvTable) sp.getViewport().getView();
     }
 
     private static List<String[]> getDataInProperFormat(DefaultTableModel model) {
@@ -219,6 +170,91 @@ class AppContent extends JPanel {
         }
 
         return data;
+    }
+
+    /**
+     * Returns the selected tab's CSV editor, or {@code null} if no tabs are open.
+     *
+     * @return The selected CSV editor, or {@code null}.
+     * @see #getCsvTable(int)
+     */
+    public CsvTable getSelectedCsvTable() {
+        int selectedIndex = tabbedPane.getSelectedIndex();
+        if (selectedIndex > -1) {
+            return getCsvTable(selectedIndex);
+        }
+        return null;
+    }
+
+    /**
+     * Opens a file.
+     *
+     * @param file The file to open.  If this is {@code null}, an empty CSV file is opened.
+     */
+    void open(Path file) {
+
+        List<String[]> rows;
+
+        if (file != null) {
+            if (Files.exists(file)) {
+                CSVReader r;
+                try {
+                    r = new CSVReader(Files.newBufferedReader(file, Charset.forName("UTF-8")));
+                    rows = r.readAll();
+                    r.close();
+                } catch (IOException ioe) {
+                    app.displayException(ioe);
+                    return;
+                }
+            }
+            else {
+                promptToCreateFile(file);
+                return;
+            }
+        }
+        else {
+            rows = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                rows.add(new String[3]);
+            }
+        }
+
+        String[][] arrayRowData = new String[rows.size()][];
+        for (int i = 0; i < rows.size(); i++) {
+            arrayRowData[i] = rows.get(i);
+        }
+
+        String[] columnNames = new String[rows.get(0).length];
+        for (int i = 0; i < columnNames.length; i++) {
+            columnNames[i] = "column" + (i + 1);
+        }
+
+        CsvTableModel model = new CsvTableModel(arrayRowData, columnNames);
+        FileData fileData = new FileData(file);
+        fileData.setModel(model);
+        CsvTable table = new CsvTable(app, fileData);
+        JScrollPane sp = new JScrollPane(table);
+        sp.setRowHeaderView(new RowHeader(app, table));
+        tabbedPane.addTab(fileData.getFileName(), sp);
+        tabbedPane.setSelectedIndex(tabbedPane.getTabCount() - 1);
+
+        // If only a single, unsaved file was open, remove it
+        if (tabbedPane.getTabCount() == 2 && !getCsvTable(0).getFileData().isPreviouslySaved()) {
+            closeTab(0);
+        }
+
+        // Notify anybody who cares that a new file was opened.
+        if (file != null) {
+            fireFileEvent(FileEvent.Type.OPENED, file);
+        }
+    }
+
+    private void promptToCreateFile(Path file) {
+        JOptionPane.showMessageDialog(this, "This file does not exist", "Unimplemented Feature", JOptionPane.ERROR_MESSAGE);
+    }
+
+    void removeFileEventListener(FileEventListener l) {
+        listenerList.remove(FileEventListener.class, l);
     }
 
     void removeSelectedRows() {

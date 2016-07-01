@@ -41,6 +41,8 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> implements
         addAction(Actions.CLOSE_ACTION_KEY, new Actions.CloseAction(this));
         addAction(EXIT_ACTION_KEY, new ExitAction<>(this, "Action.Exit"));
 
+        addAction(Actions.UNDO_ACTION_KEY, new Actions.UndoAction(this));
+        addAction(Actions.REDO_ACTION_KEY, new Actions.RedoAction(this));
         addAction(Actions.ADD_ROW_ABOVE_ACTION_KEY, new Actions.AddRowAction(this, true));
         addAction(Actions.ADD_ROWS_ABOVE_ACTION_KEY, new Actions.AddRowsAction(this, true));
         addAction(Actions.REMOVE_ROWS_ACTION_KEY, new Actions.RemoveRowsAction(this));

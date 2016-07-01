@@ -13,6 +13,8 @@ class Actions {
     static final String SAVE_AS_ACTION_KEY = "Actions.SaveAs";
     static final String CLOSE_ACTION_KEY = "Actions.Close";
 
+    static final String UNDO_ACTION_KEY = "Actions.Undo";
+    static final String REDO_ACTION_KEY = "Actions.Redo";
     static final String ADD_ROW_ABOVE_ACTION_KEY = "Actions.AddRowAbove";
     static final String ADD_ROWS_ABOVE_ACTION_KEY = "Actions.AddRowsAbove";
     static final String REMOVE_ROWS_ACTION_KEY = "Actions.RemoveRows";
@@ -114,6 +116,19 @@ class Actions {
         }
     }
 
+    static class RedoAction extends AppAction<CsvEditor> {
+
+        RedoAction(CsvEditor app) {
+            super(app, "Action.Redo", "icons/redo.gif");
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            CsvEditor app = getApplication();
+            app.getAppContent().getSelectedCsvTable().redo();
+        }
+    }
+
     static class RemoveRowsAction extends AppAction<CsvEditor> {
 
         RemoveRowsAction(CsvEditor app) {
@@ -164,6 +179,19 @@ class Actions {
                     appContent.getSelectedCsvTable().getFileData().setPath(null);
                 }
             }
+        }
+    }
+
+    static class UndoAction extends AppAction<CsvEditor> {
+
+        UndoAction(CsvEditor app) {
+            super(app, "Action.Undo", "icons/undo.gif");
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            CsvEditor app = getApplication();
+            app.getAppContent().getSelectedCsvTable().undo();
         }
     }
 }
