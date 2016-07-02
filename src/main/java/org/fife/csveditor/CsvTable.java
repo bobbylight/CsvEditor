@@ -2,13 +2,16 @@ package org.fife.csveditor;
 
 import org.apache.commons.lang3.StringUtils;
 import org.fife.csveditor.undo.AddColumnsUndoableEdit;
+import org.fife.csveditor.undo.AddRowsUndoableEdit;
 import org.fife.csveditor.undo.CellUndoableEdit;
+import org.fife.csveditor.undo.RemoveRowsUndoableEdit;
 import org.fife.ui.UIUtil;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.JTextComponent;
 import javax.swing.undo.UndoManager;
@@ -17,15 +20,17 @@ import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.EventObject;
 import java.util.List;
+import java.util.Vector;
 
 /**
  * An editor for a CSV file.
  */
+// Smart JTable resizing taken from:
+// http://stackoverflow.com/questions/15234691/enabling-auto-resize-of-jtable-only-if-it-fit-viewport/15240806#15240806
 public class CsvTable extends JTable {
 
     private CsvEditor app;
     private FileData fileData;
-    private Listener listener;
     private JPopupMenu popupMenu;
     private UndoManager undoManager;
 
@@ -40,15 +45,16 @@ public class CsvTable extends JTable {
         getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
         setDefaultEditor(Object.class, new CellEditor());
         setFillsViewportHeight(true);
+        setAutoResizeMode(AUTO_RESIZE_OFF);
 
-        listener = new Listener();
+        Listener listener = new Listener();
         undoManager = new UndoManager();
 
         JTableHeader header = getTableHeader();
         header.addMouseListener(listener);
     }
 
-    public void addColumns(int count, boolean before) {
+    void addColumns(int count, boolean before) {
         addColumns(count, before, true);
     }
 
@@ -83,10 +89,17 @@ public class CsvTable extends JTable {
         }
     }
 
-    public void addRows(int count, boolean above) {
+    void addRows(int count, boolean above) {
+        addRows(getSelectedRow(), count, above);
+    }
 
-        int row = getSelectedRow();
-        if (row == -1) {
+    void addRows(int row, int count, boolean above) {
+        addRows(row, count, above, true);
+    }
+
+    public void addRows(int row, int count, boolean above, boolean undoable) {
+
+        if (row < 0) { // e.g. -1 from getSelectedRow() with no row
             UIManager.getLookAndFeel().provideErrorFeedback(this);
             return;
         }
@@ -101,16 +114,75 @@ public class CsvTable extends JTable {
         for (int i = 0; i < count; i++) {
             model.insertRow(row + i, new Object[columnCount]);
         }
-        getSelectionModel().setSelectionInterval(row + count - 1, row + count - 1);
+        changeSelection(row, 0, false, false);
+        changeSelection(row + count - 1, columnModel.getColumnCount() - 1, false, true);
 
-        // TODO: Add undo event!!  Follow pattern in addColumns() above
+        if (undoable) {
+            undoManager.addEdit(new AddRowsUndoableEdit(app, row, above, count));
+        }
     }
 
-    public FileData getFileData() {
+    @Override
+    public void doLayout() {
+
+        TableColumn resizingColumn = null;
+
+        if (tableHeader != null) {
+            resizingColumn = tableHeader.getResizingColumn();
+        }
+
+        //  Viewport size changed. May need to increase columns widths
+        if (resizingColumn == null) {
+            setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+            super.doLayout();
+        }
+
+        //  Specific column resized. Reset preferred widths
+        else {
+
+            TableColumnModel tcm = getColumnModel();
+            for (int i = 0; i < tcm.getColumnCount(); i++) {
+                TableColumn tc = tcm.getColumn(i);
+                tc.setPreferredWidth( tc.getWidth() );
+            }
+
+            // Columns don't fill the viewport, invoke default layout
+            if (tcm.getTotalColumnWidth() < getParent().getWidth()) {
+                setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+            }
+            super.doLayout();
+        }
+
+        setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+    }
+
+    FileData getFileData() {
         return fileData;
     }
 
-    public void redo() {
+    @Override
+    public boolean getScrollableTracksViewportWidth() {
+        return getPreferredSize().width < getParent().getWidth();
+    }
+
+    public void insertRows(int row, List<Vector<?>> rowData, boolean undoable) {
+
+        // This method currently isn't called except as part of an undo or redo
+        assert !undoable;
+
+        CsvTableModel model = (CsvTableModel)getModel();
+        for (int i = 0; i < rowData.size(); i++) {
+            model.insertRow(row + i, rowData.get(i));
+        }
+        changeSelection(row, 0, false, false);
+        changeSelection(row + rowData.size() - 1, columnModel.getColumnCount() - 1, false, true);
+
+        if (undoable) {
+            throw new RuntimeException("Undoability of insertRows() is not yet implemented");
+        }
+    }
+
+    void redo() {
         if (undoManager.canRedo()) {
             undoManager.redo();
         }
@@ -131,7 +203,46 @@ public class CsvTable extends JTable {
         }
     }
 
-    public void setSelectedRows(int min, int max) {
+    public void removeRows(int row, int count, boolean above, boolean undoable) {
+
+        if (row < 0) { // e.g. -1 from getSelectedRow() with no row
+            UIManager.getLookAndFeel().provideErrorFeedback(this);
+            return;
+        }
+        if (!above) {
+            row++;
+        }
+
+        List<Vector<?>> removedRows = null;
+        if (undoable) {
+            removedRows = new ArrayList<>();
+        }
+
+        CsvTableModel model = (CsvTableModel)getModel();
+        for (int i = 0; i < count; i++) {
+            if (undoable) {
+                removedRows.add((Vector<?>)model.getDataVector().get(row));
+            }
+            model.removeRow(row);
+        }
+
+        // Don't let them have a 0-row table
+        if (getRowCount() == 0) {
+            model.addRow(new Object[getColumnCount()]);
+        }
+
+        if (undoable) {
+            undoManager.addEdit(new RemoveRowsUndoableEdit(app, row, removedRows));
+        }
+    }
+
+    void removeSelectedRows() {
+        int minSelectionIndex = getSelectionModel().getMinSelectionIndex();
+        int maxSelectionIndex = getSelectionModel().getMaxSelectionIndex();
+        removeRows(minSelectionIndex, maxSelectionIndex - minSelectionIndex + 1, true, true);
+    }
+
+    void setSelectedRows(int min, int max) {
         if (min < 0 || min >= getRowCount() ||
                 max < 0 || max >= getRowCount()) {
             throw new IllegalArgumentException();
@@ -191,7 +302,7 @@ public class CsvTable extends JTable {
         popupMenu.show(this, x, y);
     }
 
-    public void undo() {
+    void undo() {
         if (undoManager.canUndo()) {
             undoManager.undo();
         }

@@ -145,7 +145,7 @@ public class AppContent extends JPanel {
      * @return The editor.
      * @see #getSelectedCsvTable()
      */
-    CsvTable getCsvTable(int index) {
+    private CsvTable getCsvTable(int index) {
         JScrollPane sp = (JScrollPane) tabbedPane.getComponentAt(index);
         return (CsvTable) sp.getViewport().getView();
     }
@@ -265,28 +265,7 @@ public class AppContent extends JPanel {
             return;
         }
 
-        CsvTable table = getSelectedCsvTable();
-
-        FileData fileData = table.getFileData();
-        DefaultTableModel model = fileData.getModel();
-        int columnCount = table.getColumnCount();
-
-        int minSelectionIndex = table.getSelectionModel().getMinSelectionIndex();
-        int maxSelectionIndex = table.getSelectionModel().getMaxSelectionIndex();
-        int minRow = minSelectionIndex;// / columnCount;
-        int maxRow = maxSelectionIndex;// / columnCount;
-        if (minRow == -1) {
-            UIManager.getLookAndFeel().provideErrorFeedback(this);
-            return;
-        }
-        for (int i = minRow; i <= maxRow; i++) {
-            model.removeRow(minRow);
-        }
-
-        // Don't let them have a 0-row table
-        if (table.getRowCount() == 0) {
-            model.addRow(new Object[columnCount]);
-        }
+        getSelectedCsvTable().removeSelectedRows();
     }
 
     boolean saveSelectedTab() {
