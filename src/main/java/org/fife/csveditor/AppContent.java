@@ -2,14 +2,14 @@ package org.fife.csveditor;
 
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
+import org.fife.csveditor.events.CsvTableEvent;
+import org.fife.csveditor.events.CsvTableListener;
 import org.fife.csveditor.events.FileEvent;
 import org.fife.csveditor.events.FileEventListener;
 
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
+import java.util.*;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Vector;
+import java.util.List;
 
 /**
  * The haert of the application.  This is essentially the "controller," with all the main business logic.
@@ -26,10 +26,12 @@ public class AppContent extends JPanel {
 
     private CsvEditor app;
     private JTabbedPane tabbedPane;
+    private Listener listener;
 
     AppContent(CsvEditor app) {
 
         this.app = app;
+        this.listener = new Listener();
 
         TabbedPaneListener tpl = new TabbedPaneListener();
         tabbedPane = new JTabbedPane();
@@ -196,6 +198,11 @@ public class AppContent extends JPanel {
         List<String[]> rows;
 
         if (file != null) {
+
+            if (selectTabIfAlreadyOpen(file)) {
+                return;
+            }
+
             if (Files.exists(file)) {
                 CSVReader r;
                 try {
@@ -233,6 +240,7 @@ public class AppContent extends JPanel {
         FileData fileData = new FileData(file);
         fileData.setModel(model);
         CsvTable table = new CsvTable(app, fileData);
+        table.addCsvTableListener(listener);
         JScrollPane sp = new JScrollPane(table);
         sp.setRowHeaderView(new RowHeader(app, table));
         tabbedPane.addTab(fileData.getFileName(), sp);
@@ -253,6 +261,32 @@ public class AppContent extends JPanel {
         JOptionPane.showMessageDialog(this, "This file does not exist", "Unimplemented Feature", JOptionPane.ERROR_MESSAGE);
     }
 
+    /**
+     * Refreshes the tab label on all tabs displaying the specified CSV file.
+     *
+     * @param table The CSV file whose dirty state was modified.
+     */
+    private void refreshTabLabelFor(CsvTable table) {
+
+        Path tablePath = table.getFileData().getPath();
+
+        for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+
+            CsvTable table2 = getCsvTable(i);
+            FileData fileData2 = table2.getFileData();
+
+            if (Objects.equals(fileData2.getPath(), tablePath)) {
+                boolean dirty = table.isDirty();
+                String label = fileData2.getFileName();
+                if (dirty) {
+                    label += "*";
+                }
+                tabbedPane.setTitleAt(i, label);
+                // We don't break here in case the same CSV file is opened in more than one tab
+            }
+        }
+    }
+
     void removeFileEventListener(FileEventListener l) {
         listenerList.remove(FileEventListener.class, l);
     }
@@ -270,21 +304,21 @@ public class AppContent extends JPanel {
 
     boolean saveSelectedTab() {
 
-        FileData fileData = getSelectedCsvTable().getFileData();
+        CsvTable table = getSelectedCsvTable();
+
+        // Prompt for a file name if this is a new, untitled CSV file.
+        FileData fileData = table.getFileData();
         if (!fileData.isPreviouslySaved()) {
             app.getAction(Actions.SAVE_AS_ACTION_KEY).actionPerformed(null);
             return true;
         }
 
-        CSVWriter w;
-        try {
-
-            w = new CSVWriter(Files.newBufferedWriter(fileData.getPath(), Charset.forName("UTF-8")));
+        try (CSVWriter w = new CSVWriter(Files.newBufferedWriter(fileData.getPath(), Charset.forName("UTF-8")))) {
 
             DefaultTableModel model = fileData.getModel();
             List<String[]> lines = getDataInProperFormat(model);
             w.writeAll(lines, false);
-            w.close();
+            table.setDirty(false);
 
         } catch (IOException ioe) {
             app.displayException(ioe);
@@ -302,6 +336,41 @@ public class AppContent extends JPanel {
             return;
         }
         table.setSelectedRows(row, row);
+    }
+
+    /**
+     * Checks whether a file is already open in a tab and, if it is, focuses it.
+     *
+     * @param path The file to check for.
+     * @return Whether the file was already open.
+     */
+    private boolean selectTabIfAlreadyOpen(Path path) {
+
+        for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+            CsvTable table = getCsvTable(i);
+            if (Objects.equals(table.getFileData().getPath(), path)) {
+                tabbedPane.setSelectedIndex(i);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private class Listener implements CsvTableListener {
+
+        @Override
+        public void tableChanged(CsvTableEvent e) {
+
+            CsvTable source = (CsvTable)e.getSource();
+
+            switch (e.getType()) {
+
+                case DIRTY_STATE_CHANGED:
+                    refreshTabLabelFor(source);
+                    break;
+            }
+        }
     }
 
     private class TabbedPaneListener extends MouseAdapter {

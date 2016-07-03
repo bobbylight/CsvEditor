@@ -9,7 +9,6 @@ import java.nio.file.Path;
 class FileData {
 
     private Path path;
-    private boolean dirty;
     private DefaultTableModel model;
 
     FileData(Path path) {
@@ -28,16 +27,8 @@ class FileData {
         return path;
     }
 
-    boolean isDirty() {
-        return dirty;
-    }
-
     boolean isPreviouslySaved() {
         return path != null;
-    }
-
-    public void setDirty(boolean dirty) {
-        this.dirty = dirty;
     }
 
     void setModel(DefaultTableModel model) {
@@ -52,7 +43,6 @@ class FileData {
     public String toString() {
         return "[FileData: " +
                 "path=" + getPath() +
-                ", dirty=" + isDirty() +
                 "]";
     }
 }

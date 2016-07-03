@@ -34,7 +34,6 @@ import javax.swing.UIManager;
 import javax.swing.border.AbstractBorder;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
-import javax.swing.plaf.FontUIResource;
 
 import org.fife.ui.EscapableDialog;
 import org.fife.ui.RScrollPane;

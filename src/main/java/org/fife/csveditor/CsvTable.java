@@ -1,6 +1,8 @@
 package org.fife.csveditor;
 
 import org.apache.commons.lang3.StringUtils;
+import org.fife.csveditor.events.CsvTableEvent;
+import org.fife.csveditor.events.CsvTableListener;
 import org.fife.csveditor.undo.AddColumnsUndoableEdit;
 import org.fife.csveditor.undo.AddRowsUndoableEdit;
 import org.fife.csveditor.undo.CellUndoableEdit;
@@ -31,6 +33,7 @@ public class CsvTable extends JTable {
 
     private CsvEditor app;
     private FileData fileData;
+    private boolean dirty;
     private JPopupMenu popupMenu;
     private UndoManager undoManager;
 
@@ -46,6 +49,7 @@ public class CsvTable extends JTable {
         setDefaultEditor(Object.class, new CellEditor());
         setFillsViewportHeight(true);
         setAutoResizeMode(AUTO_RESIZE_OFF);
+        setRowHeight(20);
 
         Listener listener = new Listener();
         undoManager = new UndoManager();
@@ -89,6 +93,10 @@ public class CsvTable extends JTable {
         }
     }
 
+    public void addCsvTableListener(CsvTableListener l) {
+        listenerList.add(CsvTableListener.class, l);
+    }
+
     void addRows(int count, boolean above) {
         addRows(getSelectedRow(), count, above);
     }
@@ -116,6 +124,7 @@ public class CsvTable extends JTable {
         }
         changeSelection(row, 0, false, false);
         changeSelection(row + count - 1, columnModel.getColumnCount() - 1, false, true);
+        setDirty(true);
 
         if (undoable) {
             undoManager.addEdit(new AddRowsUndoableEdit(app, row, above, count));
@@ -156,6 +165,22 @@ public class CsvTable extends JTable {
         setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
     }
 
+    private void fireEvent(CsvTableEvent.Type type) {
+
+        CsvTableEvent e = new CsvTableEvent(this, type);
+
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length - 2; i >= 0; i -= 2) {
+            if (listeners[i] == CsvTableListener.class) {
+                ((CsvTableListener)listeners[i+1]).tableChanged(e);
+            }
+        }
+    }
+
     FileData getFileData() {
         return fileData;
     }
@@ -182,6 +207,10 @@ public class CsvTable extends JTable {
         }
     }
 
+    public boolean isDirty() {
+        return dirty;
+    }
+
     void redo() {
         if (undoManager.canRedo()) {
             undoManager.redo();
@@ -201,6 +230,11 @@ public class CsvTable extends JTable {
 
             getColumnModel().removeColumn(column);
         }
+        setDirty(true);
+    }
+
+    public void removeCsvTableListener(CsvTableListener l) {
+        listenerList.remove(CsvTableListener.class, l);
     }
 
     public void removeRows(int row, int count, boolean above, boolean undoable) {
@@ -230,6 +264,7 @@ public class CsvTable extends JTable {
         if (getRowCount() == 0) {
             model.addRow(new Object[getColumnCount()]);
         }
+        setDirty(true);
 
         if (undoable) {
             undoManager.addEdit(new RemoveRowsUndoableEdit(app, row, removedRows));
@@ -240,6 +275,11 @@ public class CsvTable extends JTable {
         int minSelectionIndex = getSelectionModel().getMinSelectionIndex();
         int maxSelectionIndex = getSelectionModel().getMaxSelectionIndex();
         removeRows(minSelectionIndex, maxSelectionIndex - minSelectionIndex + 1, true, true);
+    }
+
+    public void setDirty(boolean dirty) {
+        this.dirty = dirty;
+        fireEvent(CsvTableEvent.Type.DIRTY_STATE_CHANGED);
     }
 
     void setSelectedRows(int min, int max) {
@@ -284,6 +324,7 @@ public class CsvTable extends JTable {
             if (undoable) {
                 undoManager.addEdit(new CellUndoableEdit(app, row, column, prevValue, newValue));
             }
+            setDirty(true);
         }
     }
 

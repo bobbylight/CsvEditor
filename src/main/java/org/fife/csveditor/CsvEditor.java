@@ -2,6 +2,7 @@ package org.fife.csveditor;
 
 
 import org.fife.help.HelpDialog;
+import org.fife.jgoodies.looks.common.ShadowPopupFactory;
 import org.fife.ui.*;
 import org.fife.ui.app.AbstractGUIApplication;
 import org.fife.ui.rtextfilechooser.FileChooserOwner;
@@ -137,6 +138,8 @@ public class CsvEditor extends AbstractGUIApplication<CsvEditorPrefs> implements
         appContent = new AppContent(this);
 
         setContentPane(appContent);
+
+        ShadowPopupFactory.install();
     }
 
     @Override
